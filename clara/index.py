@@ -6,6 +6,7 @@ from typing import List, Optional
 from abc import ABC, abstractmethod
 import glob
 import ast
+import re
 
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.indexes.vectorstore import VectorStoreIndexWrapper
@@ -160,6 +161,65 @@ class JavascriptParsing(LanguageParsing):
         return "\n".join(line for line in simplified_lines if line is not None)
 
 
+class ElixirParsing(LanguageParsing):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.source_lines = self.code.splitlines()
+
+    def is_valid(self) -> bool:
+        # Let's skip this for now
+        return True
+
+    def extract_functions_classes(self) -> List[str]:
+        # Use regex to extract function, module, macro, and struct definitions
+        function_regex = r"(def|defp)\s+.*?\s+do"
+        module_regex = r"defmodule\s+.*?\s+do"
+        macro_regex = r"defmacro\s+.*?\s+do"
+        struct_regex = r"defstruct\s+.*?"
+        function_matches = re.findall(function_regex, self.code, re.DOTALL)
+        module_matches = re.findall(module_regex, self.code, re.DOTALL)
+        macro_matches = re.findall(macro_regex, self.code, re.DOTALL)
+        struct_matches = re.findall(struct_regex, self.code, re.DOTALL)
+
+        # Combine the matches and extract the code for each definition
+        matches = function_matches + module_matches + macro_matches + struct_matches
+        functions_classes = [match.strip() for match in matches]
+
+        return functions_classes
+
+    def simplify_code(self) -> str:
+        # Use regex to find function, module, macro, and struct definitions and add comments
+        function_regex = r"(def|defp)\s+.*?\s+do"
+        module_regex = r"defmodule\s+.*?\s+do"
+        macro_regex = r"defmacro\s+.*?\s+do"
+        struct_regex = r"defstruct\s+.*?"
+        function_matches = re.finditer(function_regex, self.code, re.DOTALL)
+        module_matches = re.finditer(module_regex, self.code, re.DOTALL)
+        macro_matches = re.finditer(macro_regex, self.code, re.DOTALL)
+        struct_matches = re.finditer(struct_regex, self.code, re.DOTALL)
+
+        # Create a list of simplified lines with comments for each definition
+        simplified_lines = []
+        for match in function_matches:
+            start = match.start()
+            end = match.end()
+            simplified_lines.append(f"# Code for: {self.code[start:end]}")
+        for match in module_matches:
+            start = match.start()
+            end = match.end()
+            simplified_lines.append(f"# Code for: {self.code[start:end]}")
+        for match in macro_matches:
+            start = match.start()
+            end = match.end()
+            simplified_lines.append(f"# Code for: {self.code[start:end]}")
+        for match in struct_matches:
+            start = match.start()
+            end = match.end()
+            simplified_lines.append(f"# Code for: {self.code[start:end]}")
+
+        # Join the simplified lines and return the result
+        return "\n".join(simplified_lines)
+
 LANGUAGE_PARSERS = {
     "py": {
         "parser": PythonParsing,
@@ -174,6 +234,11 @@ LANGUAGE_PARSERS = {
     "js": {
         "parser": JavascriptParsing,
         "language": "javascript",
+        "type": "source",
+    },
+    "ex": {
+        "parser": ElixirParsing,
+        "language": "elixir",
         "type": "source",
     },
 }
